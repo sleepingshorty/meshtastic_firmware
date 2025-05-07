@@ -7,45 +7,6 @@
 SignalReplyModule *signalReplyModule;
 
 
-void sendTextReply(const meshtastic_MeshPacket &request, const std::string &fullMessage) {
-    constexpr size_t MAX_MSG_LEN = 200;
-
-    // Split-Nachrichten nach max. 200 Zeichen
-    for (size_t offset = 0; offset < fullMessage.length(); offset += MAX_MSG_LEN) {
-        std::string chunk = fullMessage.substr(offset, MAX_MSG_LEN);
-
-        auto reply = allocDataPacket();
-        reply->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
-        reply->decoded.payload.size = chunk.length();
-        memcpy(reply->decoded.payload.bytes, chunk.c_str(), reply->decoded.payload.size);
-
-        reply->from = nodeDB->getNodeNum();
-        reply->to = (isToUs(&request) && request.from != 0) ? request.from : request.to;
-        reply->channel = request.channel;
-
-        // PKI nur bei DMs
-        if (!isBroadcast(request.to)) {
-            meshtastic_NodeInfoLite *targetNode = nodeDB->getMeshNode(reply->to);
-            if (targetNode && targetNode->user.public_key.size == 32) {
-                reply->pki_encrypted = true;
-            }
-        }
-
-        // Metadaten übernehmen
-        reply->decoded.want_response = request.decoded.want_response;
-        reply->decoded.has_bitfield = request.decoded.has_bitfield;
-        reply->decoded.bitfield = request.decoded.bitfield;
-        reply->want_ack = (request.from != 0) ? request.want_ack : false;
-        reply->id = generatePacketId();
-        if (request.priority == meshtastic_MeshPacket_Priority_UNSET) {
-            reply->priority = meshtastic_MeshPacket_Priority_RELIABLE;
-        }
-
-        service->handleToRadio(*reply);
-    }
-}
-
-
 // Custom implementation of strcasestr by "liquidraver"
 const char* strcasestr_custom(const char* haystack, const char* needle) {
     if (!haystack || !needle) return nullptr;
@@ -59,6 +20,53 @@ const char* strcasestr_custom(const char* haystack, const char* needle) {
     return nullptr;
 }
 
+
+void SignalReplyModule::sendTextReplySplit(const meshtastic_MeshPacket &request, const std::string &fullMessage) {
+    constexpr size_t MAX_MSG_LEN = 200;
+
+    for (size_t offset = 0; offset < fullMessage.length(); offset += MAX_MSG_LEN) {
+        std::string chunk = fullMessage.substr(offset, MAX_MSG_LEN);
+
+        auto reply = allocDataPacket();
+        reply->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
+        reply->decoded.payload.size = chunk.length();
+        memcpy(reply->decoded.payload.bytes, chunk.c_str(), reply->decoded.payload.size);
+
+        // EXAKT wie Ping
+        reply->from = nodeDB->getNodeNum();
+        reply->to = (isToUs(&request) && request.from != 0) ? request.from : request.to;
+
+        if (!isBroadcast(request.to)) {
+            meshtastic_NodeInfoLite *targetNode = nodeDB->getMeshNode(reply->to);
+            if (!isBroadcast(request.to) && targetNode && targetNode->user.public_key.size == 32) {
+                reply->pki_encrypted = true;
+            }
+        }
+
+        reply->channel = request.channel;
+        reply->decoded.want_response = request.decoded.want_response;
+        reply->decoded.has_bitfield = request.decoded.has_bitfield;
+        reply->decoded.bitfield = request.decoded.bitfield;
+        reply->want_ack = (request.from != 0) ? request.want_ack : false;
+
+        if (request.priority == meshtastic_MeshPacket_Priority_UNSET) {
+            reply->priority = meshtastic_MeshPacket_Priority_RELIABLE;
+        } else {
+            reply->priority = request.priority;
+        }
+
+        reply->id = generatePacketId();
+
+        // DEBUG zur Prüfung
+        LOG_INFO("Sending neighbor chunk: '%s' to=%d on channel=%d", chunk.c_str(), reply->to, reply->channel);
+
+        service->handleToRadio(*reply);
+    }
+}
+
+
+
+
 ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &currentRequest)
 {
     auto &p = currentRequest.decoded;
@@ -69,63 +77,26 @@ ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &cu
     }
     messageRequest[p.payload.size] = '\0';
 
-    //0-Hop Neighbors:
-    if (strcasestr_custom(messageRequest, "neighbor") != nullptr) {
-        constexpr size_t MAX_MSG_SIZE = 200;
-        char message[512] = "";
-        size_t msgLen = 0;
+   
     
 
-        auto neighborList = neighborInfoModule->getNeighbors();
-        
-        for (size_t i = 0; i < neighborList.size(); ++i) {
-            const auto &n = neighborList[i];
+ //0-Hop Neighbors:
+ if (strcasestr_custom(messageRequest, "neighbor_info") != nullptr) {
+    std::string fullMessage;
 
-       
-            char line[64];
-            snprintf(line, sizeof(line), "- 0x%x: SNR %.1f\n", n.node_id, n.snr);
-    
-            if (msgLen + strlen(line) >= MAX_MSG_SIZE) {
-                // Sende Nachricht ab
-                auto reply = allocDataPacket();
-                reply->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
-                reply->decoded.payload.size = msgLen;
-                reply->from = nodeDB->getNodeNum();
-                reply->to = currentRequest.from;
-                reply->channel = currentRequest.channel;
-                memcpy(reply->decoded.payload.bytes, message, msgLen);
-                reply->pki_encrypted = !isBroadcast(currentRequest.to);
-                reply->priority = meshtastic_MeshPacket_Priority_RELIABLE;
-                reply->id = generatePacketId();
-                service->handleToRadio(*reply);
-    
-                // Nachricht zurücksetzen
-                msgLen = 0;
-                message[0] = '\0';
-            }
-    
-            strncat(message, line, sizeof(message) - strlen(message) - 1);
-            msgLen = strlen(message);
-        }
-    
-        // Letzte Nachricht abschicken (Rest)
-        if (msgLen > 0) {
-            auto reply = allocDataPacket();
-            reply->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
-            reply->decoded.payload.size = msgLen;
-            reply->from = nodeDB->getNodeNum();
-            reply->to = currentRequest.from;
-            reply->channel = currentRequest.channel;
-            memcpy(reply->decoded.payload.bytes, message, msgLen);
-            reply->pki_encrypted = !isBroadcast(currentRequest.to);
-            reply->priority = meshtastic_MeshPacket_Priority_RELIABLE;
-            reply->id = generatePacketId();
-            service->handleToRadio(*reply);
-        }
+    auto neighborList = neighborInfoModule->getNeighbors();
+    for (const auto &n : neighborList) {
+        char line[64];
+        snprintf(line, sizeof(line), "- 0x%x: SNR %.1f\n", n.node_id, n.snr);
+        fullMessage += line;
     }
-    
 
+    if (fullMessage.empty()) {
+        fullMessage = "No neighbors found.";
+    }
 
+    sendTextReplySplit(currentRequest, fullMessage);
+}
 
 
     //This condition is meant to reply to message containing request "ping" or

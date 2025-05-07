@@ -23,6 +23,7 @@ class SignalReplyModule : public SinglePortModule, public Observable<const mesht
     virtual bool wantPacket(const meshtastic_MeshPacket *p) override;
     virtual ProcessMessage handleReceived(const meshtastic_MeshPacket &mp) override;
     void sendTextReply(const meshtastic_MeshPacket &request, const std::string &fullMessage) ;
+    void sendTextReplySplit(const meshtastic_MeshPacket &request, const std::string &fullMessage);
 
 
 };
