@@ -16,6 +16,7 @@ class NodeInfoModule : public ProtobufModule<meshtastic_User>, private concurren
      * name is for debugging output
      */
     NodeInfoModule();
+    
 
     /**
      * Send our NodeInfo into the mesh
