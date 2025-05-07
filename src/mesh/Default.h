@@ -5,6 +5,7 @@
 #define ONE_DAY 24 * 60 * 60
 #define ONE_MINUTE_MS 60 * 1000
 #define THIRTY_SECONDS_MS 30 * 1000
+#define ONE_SECOND_MS 1 * 1000
 #define FIVE_SECONDS_MS 5 * 1000
 
 #define min_default_telemetry_interval_secs 30 * 60

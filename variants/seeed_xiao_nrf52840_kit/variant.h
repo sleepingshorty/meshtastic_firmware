@@ -114,7 +114,7 @@ static const uint8_t SCK = PIN_SPI_SCK;
 
 #define SX126X_TXEN RADIOLIB_NC
 
-#define SX126X_RXEN D4
+#define SX126X_RXEN D5
 #define SX126X_DIO2_AS_RF_SWITCH // DIO2 is used to control the RF switch really necessary!!!
 #define SX126X_DIO3_TCXO_VOLTAGE 1.8
 

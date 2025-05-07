@@ -7,6 +7,9 @@
 #include "input/SerialKeyboardImpl.h"
 #include "input/TrackballInterruptImpl1.h"
 #include "input/UpDownInterruptImpl1.h"
+
+#include "SignalReplyModule.h"
+
 #if !MESHTASTIC_EXCLUDE_I2C
 #include "input/cardKbI2cImpl.h"
 #endif
@@ -149,6 +152,10 @@ void setupModules()
         new PowerStressModule();
 #endif
         // Example: Put your module here
+#if PINGBOT
+        new SignalReplyModule();
+#endif
+
         // new ReplyModule();
 #if (HAS_BUTTON || ARCH_PORTDUINO) && !MESHTASTIC_EXCLUDE_INPUTBROKER
         rotaryEncoderInterruptImpl1 = new RotaryEncoderInterruptImpl1();

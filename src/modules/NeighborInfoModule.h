@@ -17,6 +17,7 @@ class NeighborInfoModule : public ProtobufModule<meshtastic_NeighborInfo>, priva
      * Expose the constructor
      */
     NeighborInfoModule();
+    const std::vector<meshtastic_Neighbor>& getNeighbors() const { return neighbors; }
 
     /* Reset neighbor info after clearing nodeDB*/
     void resetNeighbors();

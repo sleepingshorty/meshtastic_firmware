@@ -649,6 +649,35 @@ void Router::handleReceived(meshtastic_MeshPacket *p, RxSource src)
         printPacket("packet decoding failed or skipped (no PSK?)", p);
     }
 
+
+    // // --- PingBot: einfache Ping-Erkennung (nur lowercase) ---
+    // if (p->which_payload_variant == meshtastic_MeshPacket_decoded_tag &&
+    //     p->decoded.portnum == meshtastic_PortNum_TEXT_MESSAGE_APP) {
+
+    //     const char* msg = (const char*)p->decoded.payload.bytes;
+
+    //     for (int i = 0; i < p->decoded.payload.size - 3; ++i) {
+    //         if (msg[i] == 'P' && msg[i+1] == 'i' && msg[i+2] == 'n' && msg[i+3] == 'g') {
+    //             meshtastic_MeshPacket* reply = allocForSending();
+    //             if (reply) {
+    //                 reply->to = p->from;
+    //                 reply->channel = p->channel;
+                    
+    //                 reply->hop_limit = HOP_MAX;
+
+    //                 reply->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
+    //                 reply->decoded.payload.size = 4;
+    //                 memcpy(reply->decoded.payload.bytes, "Pong", 4);
+
+    //                 send(reply);
+    //             }
+    //             break; // nur einmal antworten
+    //         }
+    //     }
+    // }
+
+
+
     // call modules here
     if (!skipHandle) {
         MeshModule::callModules(*p, src);
