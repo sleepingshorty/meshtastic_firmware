@@ -3,6 +3,10 @@
 #include "configuration.h"
 #include "main.h"
 #include "NeighborInfoModule.h"
+#include <Throttle.h>
+#include "Default.h"
+#include "RadioLibInterface.h"
+#include "Router.h"
 
 SignalReplyModule *signalReplyModule;
 
@@ -78,24 +82,59 @@ ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &cu
     messageRequest[p.payload.size] = '\0';
 
    
-    
+//RX Stats:
+ // LOG_DEBUG("Send queued packet on mesh (txGood=%d,rxGood=%d,rxBad=%d)", rf95.txGood(), rf95.rxGood(), rf95.rxBad());
+ if (strcasestr_custom(messageRequest, "status_info") != nullptr) {
+    static uint32_t lastStatus = millis(); 
+    if (!Throttle::isWithinTimespanMs(lastStatus, FIVE_SECONDS_MS)) {
+        lastStatus = millis();
+
+        char messageReply[300];
+        if (RadioLibInterface::instance && router) {
+            snprintf(messageReply, sizeof(messageReply),
+                     "Radio stats:\n"
+                     "TX Good: %d\n"
+                     "RX Good: %d\n"
+                     "RX Bad: %d\n"
+                     "TX Relayed: %d\n"
+                     "RX Duplicate: %d\n"
+                     "TX Relay Canceled: %d",
+                     RadioLibInterface::instance->txGood,
+                     RadioLibInterface::instance->rxGood,
+                     RadioLibInterface::instance->rxBad,
+                     RadioLibInterface::instance->txRelay,
+                     router->rxDupe,
+                     router->txRelayCanceled);
+        } else {
+            snprintf(messageReply, sizeof(messageReply), "Status info unavailable (no RadioLib or Router).");
+        }
+
+        sendTextReplySplit(currentRequest, messageReply);
+    }
+}
+
+
 
  //0-Hop Neighbors:
  if (strcasestr_custom(messageRequest, "neighbor_info") != nullptr) {
     std::string fullMessage;
 
-    auto neighborList = neighborInfoModule->getNeighbors();
-    for (const auto &n : neighborList) {
-        char line[64];
-        snprintf(line, sizeof(line), "- 0x%x: SNR %.1f\n", n.node_id, n.snr);
-        fullMessage += line;
-    }
+    static uint32_t lastNeighBorInfo = millis(); 
+        if (!Throttle::isWithinTimespanMs(lastNeighBorInfo, FIVE_SECONDS_MS)) {
+            lastNeighBorInfo = millis();
+            auto neighborList = neighborInfoModule->getNeighbors();
+            for (const auto &n : neighborList) {
+                char line[64];
+                snprintf(line, sizeof(line), "- 0x%x: SNR %.1f\n", n.node_id, n.snr);
+                fullMessage += line;
+            }
 
-    if (fullMessage.empty()) {
-        fullMessage = "No neighbors found.";
-    }
+            if (fullMessage.empty()) {
+                fullMessage = "No neighbors found.";
+            }
 
-    sendTextReplySplit(currentRequest, fullMessage);
+            sendTextReplySplit(currentRequest, fullMessage);
+    }
 }
 
 
@@ -104,56 +143,37 @@ ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &cu
     //in such case this module sends back information about sgnal quality as well.
     //If not interested in replies to RangeModule semove "seq" condition
 
-    if ( ( (strcasestr_custom(messageRequest, "ping")) != nullptr) &&   //fix 2025-03-06 (liquidraver & Brabrouk)
-         currentRequest.from != 0x0 &&  //fix 2025-05-08
-         currentRequest.from != nodeDB->getNodeNum())
+    if ((strcasestr_custom(messageRequest, "ping") != nullptr) &&
+    currentRequest.from != 0x0 &&
+    currentRequest.from != nodeDB->getNodeNum())
     {
-        int hopLimit = currentRequest.hop_limit;
-        int hopStart = currentRequest.hop_start;
+        static uint32_t lastPing = millis(); 
+        if (!Throttle::isWithinTimespanMs(lastPing, FIVE_SECONDS_MS)) {
+            lastPing = millis();
+            int hopLimit = currentRequest.hop_limit;
+            int hopStart = currentRequest.hop_start;
 
-        char idSender[10];
-        char idReceipient[10];
-        snprintf(idSender, sizeof(idSender), "%d", currentRequest.from);
-        snprintf(idReceipient, sizeof(idReceipient), "%d", nodeDB->getNodeNum());
+            char idSender[10];
+            char idReceipient[10];
+            snprintf(idSender, sizeof(idSender), "%d", currentRequest.from);
+            snprintf(idReceipient, sizeof(idReceipient), "%d", nodeDB->getNodeNum());
 
-        char messageReply[250];
-        meshtastic_NodeInfoLite *nodeSender = nodeDB->getMeshNode(currentRequest.from);
-        const char *username = nodeSender->has_user ? nodeSender->user.short_name : idSender;
-        meshtastic_NodeInfoLite *nodeReceiver = nodeDB->getMeshNode(nodeDB->getNodeNum());
-        const char *usernameja = nodeReceiver->has_user ? nodeReceiver->user.short_name : idReceipient;
+            char messageReply[250];
+            meshtastic_NodeInfoLite *nodeSender = nodeDB->getMeshNode(currentRequest.from);
+            const char *username = nodeSender->has_user ? nodeSender->user.short_name : idSender;
+            meshtastic_NodeInfoLite *nodeReceiver = nodeDB->getMeshNode(nodeDB->getNodeNum());
+            const char *usernameja = nodeReceiver->has_user ? nodeReceiver->user.short_name : idReceipient;
 
-        LOG_ERROR("SignalReplyModule::handleReceived(): '%s' from %s.", messageRequest, username);
+            // Logging
+            //LOG_ERROR("SignalReplyModule::handleReceived(): '%s' from %s.", messageRequest, username);
 
-        snprintf(messageReply, sizeof(messageReply), "%s: Pong! %d Hops, RSSI %d dBm, SNR %.1f dB", username, (hopStart-hopLimit),currentRequest.rx_rssi, currentRequest.rx_snr);
+            snprintf(messageReply, sizeof(messageReply), "%s: Pong! %d Hops, RSSI %d dBm, SNR %.1f dB",
+                    username, (hopStart - hopLimit), currentRequest.rx_rssi, currentRequest.rx_snr);
 
-        auto reply = allocDataPacket();
-        reply->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
-        reply->decoded.payload.size = strlen(messageReply);
-        //reply->from = getFrom(&currentRequest);
-        reply->from = nodeDB->getNodeNum();
-        reply->to = (isToUs(&currentRequest) && currentRequest.from != 0) ? currentRequest.from : currentRequest.to;
-        if (!isBroadcast(currentRequest.to)) {
-            meshtastic_NodeInfoLite *targetNode = nodeDB->getMeshNode(reply->to);
-            if (!isBroadcast(currentRequest.to) && targetNode && targetNode->user.public_key.size == 32) {
-                reply->pki_encrypted = true;
-            }
+            // Versende über die getestete zentrale Methode
+            sendTextReplySplit(currentRequest, messageReply);
         }
-        reply->channel = currentRequest.channel;
-        reply->decoded.want_response = currentRequest.decoded.want_response;
-        reply->decoded.has_bitfield = currentRequest.decoded.has_bitfield;
-        reply->decoded.bitfield = currentRequest.decoded.bitfield;
-        reply->want_ack = (currentRequest.from != 0) ? currentRequest.want_ack : false;
-        
-        LOG_INFO("Replying on channel: %d, from: %d, to: %d", reply->channel, reply->from, reply->to);
-
-        if (currentRequest.priority == meshtastic_MeshPacket_Priority_UNSET)
-        {
-            reply->priority = meshtastic_MeshPacket_Priority_RELIABLE;
-        }
-        reply->id = generatePacketId();
-        memcpy(reply->decoded.payload.bytes, messageReply, reply->decoded.payload.size);
-        service->handleToRadio(*reply);
-    }
+}
     notifyObservers(&currentRequest);
     return ProcessMessage::CONTINUE;
 }
