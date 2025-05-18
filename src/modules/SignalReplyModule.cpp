@@ -73,6 +73,7 @@ void SignalReplyModule::sendTextReplySplit(const meshtastic_MeshPacket &request,
 
 ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &currentRequest)
 {
+
     auto &p = currentRequest.decoded;
     char messageRequest[250];
     for (size_t i = 0; i < p.payload.size; ++i)
@@ -81,11 +82,37 @@ ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &cu
     }
     messageRequest[p.payload.size] = '\0';
 
+
+    //Simple LongFast Info-Logik:
+    // Zusätzliche Schlagwort-Erkennung
+    std::string messageLower = messageRequest;
+    std::transform(messageLower.begin(), messageLower.end(), messageLower.begin(), ::tolower);
+
+    bool shouldNotify = false;
+
+    if (strcasestr_custom(messageRequest, "empfangen?") != nullptr)
+        shouldNotify = true;
+    else if (strcasestr_custom(messageRequest, "mich jemand") != nullptr)
+        shouldNotify = true;
+    else if (strcasestr_custom(messageRequest, "hallo?") != nullptr)
+        shouldNotify = true;
+    else if (strcasestr_custom(messageRequest, "jemand da") != nullptr)
+        shouldNotify = true;
+    else if (messageLower.find("test") != std::string::npos)
+        shouldNotify = true;
+
+    if (shouldNotify) {
+        const char *infoMessage = "Automatische Nachricht: Bitte von LongFast auf ShortSlow umstellen! Netz ist hier im Rheinland auf ShortSlow. Info https://chat.whatsapp.com/L7JhMdd6i4f4Opk3VjLnQt";
+        sendTextReplySplit(currentRequest, infoMessage);
+    }
+
+
+
    
 //RX Stats:
  // LOG_DEBUG("Send queued packet on mesh (txGood=%d,rxGood=%d,rxBad=%d)", rf95.txGood(), rf95.rxGood(), rf95.rxBad());
- if (strcasestr_custom(messageRequest, "status_info") != nullptr) {
-    static uint32_t lastStatus = millis(); 
+ if (strcasestr_custom(messageRequest, "/status_info") != nullptr) {
+    static uint32_t lastStatus = 0; 
     if (!Throttle::isWithinTimespanMs(lastStatus, FIVE_SECONDS_MS)) {
         lastStatus = millis();
 
@@ -116,10 +143,10 @@ ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &cu
 
 
  //0-Hop Neighbors:
- if (strcasestr_custom(messageRequest, "neighbor_info") != nullptr) {
+ if (strcasestr_custom(messageRequest, "/neighbor_info") != nullptr) {
     std::string fullMessage;
 
-    static uint32_t lastNeighBorInfo = millis(); 
+    static uint32_t lastNeighBorInfo = 0; 
         if (!Throttle::isWithinTimespanMs(lastNeighBorInfo, FIVE_SECONDS_MS)) {
             lastNeighBorInfo = millis();
             auto neighborList = neighborInfoModule->getNeighbors();
@@ -147,7 +174,7 @@ ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &cu
     currentRequest.from != 0x0 &&
     currentRequest.from != nodeDB->getNodeNum())
     {
-        static uint32_t lastPing = millis(); 
+        static uint32_t lastPing = 0; 
         if (!Throttle::isWithinTimespanMs(lastPing, FIVE_SECONDS_MS)) {
             lastPing = millis();
             int hopLimit = currentRequest.hop_limit;
