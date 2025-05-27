@@ -29,6 +29,10 @@ class Router : protected concurrency::OSThread, protected PacketHistory
      */
     Router();
 
+    // Virtuelle Methode – wird in FloodingRouter überschrieben
+    virtual void setRepeatThreshold(uint8_t count) {}
+    virtual uint8_t getRepeatThreshold() { return 1; }
+
     /**
      * Currently we only allow one interface, that may change in the future
      */

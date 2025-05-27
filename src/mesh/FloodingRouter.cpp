@@ -5,6 +5,31 @@
 
 FloodingRouter::FloodingRouter() {}
 
+// in FloodingRouter.cpp
+static std::unordered_map<uint32_t, uint8_t> rxRepeatCount;  // key = packet id
+static const size_t MAX_REPEAT_TRACK = 100;
+
+int rtm_repeat_count = 1;  // default, darf global bleiben
+
+void FloodingRouter::setRepeatThreshold(uint8_t count)
+{
+    rtm_repeat_count = count;
+    LOG_INFO("Set rtm_repeat_count to %d", rtm_repeat_count);
+}
+
+uint8_t FloodingRouter::getRepeatThreshold()
+{
+    return rtm_repeat_count;
+}
+
+void trimOldEntries() {
+    while (rxRepeatCount.size() > MAX_REPEAT_TRACK) {
+        rxRepeatCount.erase(rxRepeatCount.begin()); // FIFO-like behavior
+    }
+}
+
+
+
 /**
  * Send a packet on a suitable interface.  This routine will
  * later free() the packet to pool.  This routine is not allowed to stall.
@@ -48,14 +73,38 @@ void FloodingRouter::perhapsCancelDupe(const meshtastic_MeshPacket *p)
     if (config.device.role != meshtastic_Config_DeviceConfig_Role_ROUTER &&
         config.device.role != meshtastic_Config_DeviceConfig_Role_REPEATER &&
         config.device.role != meshtastic_Config_DeviceConfig_Role_ROUTER_LATE) {
-        // cancel rebroadcast of this message *if* there was already one, unless we're a router/repeater!
-        if (Router::cancelSending(p->from, p->id))
-            txRelayCanceled++;
-    }
-    if (config.device.role == meshtastic_Config_DeviceConfig_Role_ROUTER_LATE && iface) {
-        iface->clampToLateRebroadcastWindow(getFrom(p), p->id);
+
+        uint32_t key = p->id;
+        rxRepeatCount[key]++;
+
+        if (rxRepeatCount[key] >= rtm_repeat_count) {
+            if (Router::cancelSending(p->from, p->id)) {
+                txRelayCanceled++;
+                LOG_DEBUG("Repeat cancel: heard %d times (limit %d)", rxRepeatCount[key], rtm_repeat_count);
+            }
+        } else {
+            LOG_DEBUG("Repeat count for packet %08x: %d (limit: %d)", p->id, rxRepeatCount[key], rtm_repeat_count);
+        }
+
+        trimOldEntries();
     }
 }
+
+
+
+// void FloodingRouter::perhapsCancelDupe(const meshtastic_MeshPacket *p)
+// {
+//     if (config.device.role != meshtastic_Config_DeviceConfig_Role_ROUTER &&
+//         config.device.role != meshtastic_Config_DeviceConfig_Role_REPEATER &&
+//         config.device.role != meshtastic_Config_DeviceConfig_Role_ROUTER_LATE) {
+//         // cancel rebroadcast of this message *if* there was already one, unless we're a router/repeater!
+//         if (Router::cancelSending(p->from, p->id))
+//             txRelayCanceled++;
+//     }
+//     if (config.device.role == meshtastic_Config_DeviceConfig_Role_ROUTER_LATE && iface) {
+//         iface->clampToLateRebroadcastWindow(getFrom(p), p->id);
+//     }
+// }
 
 bool FloodingRouter::isRebroadcaster()
 {
