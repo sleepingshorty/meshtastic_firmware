@@ -56,10 +56,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "mesh/wifi/WiFiAPClient.h"
 #endif
 
-#if HAS_ETHERNET
-#include "mesh/eth/ethClient.h"
-#endif
-
 #ifdef ARCH_ESP32
 #include "esp_task_wdt.h"
 #include "modules/StoreForwardModule.h"
@@ -234,42 +230,6 @@ static void drawOEMBootScreen(OLEDDisplay *display, OLEDDisplayUiState *state, i
     drawOEMIconScreen(region, display, state, x, y);
 }
 
-#endif
-
-#if HAS_ETHERNET
-static void drawEthernetFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)
-{
-    display->setFont(FONT_SMALL);
-    display->setTextAlignment(TEXT_ALIGN_LEFT);
-
-    if (config.display.displaymode == meshtastic_Config_DisplayConfig_DisplayMode_INVERTED) {
-        display->fillRect(0 + x, 0 + y, x + display->getWidth(), y + FONT_HEIGHT_SMALL);
-        display->setColor(BLACK);
-    }
-
-    display->setColor(WHITE);
-
-    // Adjust vertical position verticale ajustée - starts higher
-    int16_t y_offset = y + 2; // Reduces space at top
-
-    // Left Alignement (x + small offset)
-    int16_t x_offset = x + 2;
-
-    // Display is not centered, align left
-    display->drawString(x_offset, y_offset, "Ethernet Config:");
-    y_offset += FONT_HEIGHT_SMALL + 2; // Slightly reduced spacing
-
-    display->drawString(x_offset, y_offset, "IP: " + Ethernet.localIP().toString());
-    y_offset += FONT_HEIGHT_SMALL;
-
-    display->drawString(x_offset, y_offset, "Mask: " + Ethernet.subnetMask().toString());
-    y_offset += FONT_HEIGHT_SMALL;
-
-    display->drawString(x_offset, y_offset, "GW: " + Ethernet.gatewayIP().toString());
-    // y_offset += FONT_HEIGHT_SMALL;
-
-    // display->drawString(x_offset, y_offset, "DNS: " + Ethernet.dnsServerIP().toString());
-}
 #endif
 
 void Screen::drawFrameText(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y, const char *message)
@@ -1652,6 +1612,9 @@ void Screen::handleSetOn(bool on, FrameCallback einkScreensaver)
 #ifdef T_WATCH_S3
             PMU->enablePowerOutput(XPOWERS_ALDO2);
 #endif
+#ifdef HELTEC_TRACKER_V1_X
+            uint8_t tft_vext_enabled = digitalRead(VEXT_ENABLE);
+#endif
 #if !ARCH_PORTDUINO
             dispdev->displayOn();
 #endif
@@ -1662,6 +1625,12 @@ void Screen::handleSetOn(bool on, FrameCallback einkScreensaver)
 #endif
 
             dispdev->displayOn();
+#ifdef HELTEC_TRACKER_V1_X
+            // If the TFT VEXT power is not enabled, initialize the UI.
+            if (!tft_vext_enabled) {
+                ui->init();
+            }
+#endif
 #ifdef USE_ST7789
             pinMode(VTFT_CTRL, OUTPUT);
             digitalWrite(VTFT_CTRL, LOW);
@@ -2219,12 +2188,6 @@ void Screen::setFrames(FrameFocus focus)
     if (isWifiAvailable()) {
         // call a method on debugInfoScreen object (for more details)
         normalFrames[numframes++] = &Screen::drawDebugInfoWiFiTrampoline;
-    }
-#endif
-
-#if HAS_ETHERNET
-    if (Ethernet.hardwareStatus() != EthernetNoHardware) {
-        normalFrames[numframes++] = drawEthernetFrame;
     }
 #endif
 
@@ -2886,9 +2849,6 @@ int Screen::handleInputEvent(const InputEvent *event)
 
 int Screen::handleAdminMessage(const meshtastic_AdminMessage *arg)
 {
-    // Note: only selected admin messages notify this observer
-    // If you wish to handle a new type of message, you should modify AdminModule.cpp first
-
     switch (arg->which_payload_variant) {
     // Node removed manually (i.e. via app)
     case meshtastic_AdminMessage_remove_by_nodenum_tag:
