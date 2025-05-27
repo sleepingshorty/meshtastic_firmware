@@ -44,6 +44,9 @@ class FloodingRouter : public Router
      * If the txmit queue is full it might return an error
      */
     virtual ErrorCode send(meshtastic_MeshPacket *p) override;
+    void setRepeatThreshold(uint8_t count) override;
+    uint8_t getRepeatThreshold() override;
+
 
   protected:
     /**

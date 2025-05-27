@@ -110,6 +110,11 @@ class RadioInterface
     void deliverToReceiver(meshtastic_MeshPacket *p);
 
   public:
+
+  void setManualPriority(int32_t value); //Overwrite Client SNR-Priority Logik with own value
+  int32_t getManualPriority() const;
+
+
     /** pool is the pool we will alloc our rx packets from
      */
     RadioInterface();
@@ -264,3 +269,4 @@ class RadioInterface
 
 /// Debug printing for packets
 void printPacket(const char *prefix, const meshtastic_MeshPacket *p);
+

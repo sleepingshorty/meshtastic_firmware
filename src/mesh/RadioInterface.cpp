@@ -12,6 +12,8 @@
 #include <pb_decode.h>
 #include <pb_encode.h>
 
+int32_t manualPriority = -1;
+
 #define RDEF(name, freq_start, freq_end, duty_cycle, spacing, power_limit, audio_permitted, frequency_switching, wide_lora)      \
     {                                                                                                                            \
         meshtastic_Config_LoRaConfig_RegionCode_##name, freq_start, freq_end, duty_cycle, spacing, power_limit, audio_permitted, \
@@ -288,6 +290,18 @@ uint32_t RadioInterface::getTxDelayMsecWeighted(float snr)
         delay = random(0, 2 * CWsize) * slotTimeMsec;
         LOG_DEBUG("rx_snr found in packet. Router: setting tx delay:%d", delay);
     } else {
+        //TZ Angepasst für manuelle Konfiguration
+        // Prüfen ob manuelle Priorität gesetzt wurde (nur für Clients)
+        if (manualPriority >= 3) {
+            CWsize = clamp(static_cast<uint8_t>(manualPriority), CWmin, CWmax);
+
+            LOG_DEBUG("Manual priority override: CWsize = %d", CWsize);
+        } else {
+            CWsize = getCWsize(snr);
+            LOG_DEBUG("SNR-based priority: CWsize = %d", CWsize);
+        }
+
+
         // offset the maximum delay for routers: (2 * CWmax * slotTimeMsec)
         delay = (2 * CWmax * slotTimeMsec) + random(0, pow(2, CWsize)) * slotTimeMsec;
         LOG_DEBUG("rx_snr found in packet. Setting tx delay:%d", delay);
@@ -661,4 +675,21 @@ size_t RadioInterface::beginSending(meshtastic_MeshPacket *p)
 
     sendingPacket = p;
     return p->encrypted.size + sizeof(PacketHeader);
+}
+
+void RadioInterface::setManualPriority(int32_t value)
+{
+    if (value < 0) {
+        manualPriority = -1;
+        LOG_INFO("Manual priority cleared");
+    } else {
+        //manualPriority = clamp(value, CWmin, CWmax);
+        manualPriority = clamp(value, static_cast<int32_t>(CWmin), static_cast<int32_t>(CWmax));
+
+        LOG_INFO("Manual priority set to %d", manualPriority);
+    }
+}
+
+int32_t RadioInterface::getManualPriority() const {
+    return manualPriority;
 }

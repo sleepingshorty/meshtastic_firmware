@@ -10,6 +10,8 @@
 
 SignalReplyModule *signalReplyModule;
 
+int backoff_time_ms = 0;
+extern int rtm_repeat_count;
 
 // Custom implementation of strcasestr by "liquidraver"
 const char* strcasestr_custom(const char* haystack, const char* needle) {
@@ -88,23 +90,23 @@ ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &cu
     std::string messageLower = messageRequest;
     std::transform(messageLower.begin(), messageLower.end(), messageLower.begin(), ::tolower);
 
-    bool shouldNotify = false;
+    // bool shouldNotify = false;
 
-    if (strcasestr_custom(messageRequest, "empfangen?") != nullptr)
-        shouldNotify = true;
-    else if (strcasestr_custom(messageRequest, "mich jemand") != nullptr)
-        shouldNotify = true;
-    else if (strcasestr_custom(messageRequest, "hallo?") != nullptr)
-        shouldNotify = true;
-    else if (strcasestr_custom(messageRequest, "jemand da") != nullptr)
-        shouldNotify = true;
-    else if (messageLower.find("test") != std::string::npos)
-        shouldNotify = true;
+    // if (strcasestr_custom(messageRequest, "empfangen?") != nullptr)
+    //     shouldNotify = true;
+    // else if (strcasestr_custom(messageRequest, "mich jemand") != nullptr)
+    //     shouldNotify = true;
+    // else if (strcasestr_custom(messageRequest, "hallo?") != nullptr)
+    //     shouldNotify = true;
+    // else if (strcasestr_custom(messageRequest, "jemand da") != nullptr)
+    //     shouldNotify = true;
+    // else if (messageLower.find("test") != std::string::npos)
+    //     shouldNotify = true;
 
-    if (shouldNotify) {
-        const char *infoMessage = "Automatische Nachricht: Bitte von LongFast auf ShortSlow umstellen! Netz ist hier im Rheinland auf ShortSlow. Info https://chat.whatsapp.com/L7JhMdd6i4f4Opk3VjLnQt";
-        sendTextReplySplit(currentRequest, infoMessage);
-    }
+    // if (shouldNotify) {
+    //     const char *infoMessage = "Automatische Nachricht: Bitte von LongFast auf ShortSlow umstellen! Netz ist hier im Rheinland auf ShortSlow. Info https://chat.whatsapp.com/L7JhMdd6i4f4Opk3VjLnQt";
+    //     sendTextReplySplit(currentRequest, infoMessage);
+    // }
 
 
 
@@ -201,6 +203,74 @@ ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &cu
             sendTextReplySplit(currentRequest, messageReply);
         }
 }
+
+//Client Logik überschreiben
+if (strcasestr_custom(messageRequest, "/set_priority") != nullptr) {
+    static uint32_t lastSet = 0;
+    if (!Throttle::isWithinTimespanMs(lastSet, FIVE_SECONDS_MS)) {
+        lastSet = millis();
+
+        int value = atoi(messageRequest + strlen("/set_priority"));
+        if (value >= 3 && value <= 8) {
+            RadioLibInterface::instance->setManualPriority(value);
+            char reply[64];
+            snprintf(reply, sizeof(reply), "Manuelle Priorität gesetzt auf %d.", value);
+            sendTextReplySplit(currentRequest, reply);
+        } else {
+            if (value ==-1) 
+                {
+                 sendTextReplySplit(currentRequest, "Original Clientlogik aktiviert");
+                }
+            else{
+                sendTextReplySplit(currentRequest, "Ungültiger Wert. Bitte 3 (hohe Prio), bis 8 (niedrige Prio) eingeben.");
+            }
+        }
+    }
+}
+
+if (strcasestr_custom(messageRequest, "/get_priority") != nullptr) {
+    static uint32_t lastGet = 0;
+    if (!Throttle::isWithinTimespanMs(lastGet, FIVE_SECONDS_MS)) {
+        lastGet = millis();
+        int32_t manualPriority = RadioLibInterface::instance->getManualPriority();
+        char reply[64];
+        if (manualPriority >= 0) {
+            snprintf(reply, sizeof(reply), "Aktuelle manuelle Priorität: %d", manualPriority);
+        } else {
+            snprintf(reply, sizeof(reply), "Keine manuelle Priorität gesetzt (SNR-basiert aktiv).");
+        }
+
+        sendTextReplySplit(currentRequest, reply);
+    }
+}
+
+
+//Repeat-to-Mute
+if (strcasestr_custom(messageRequest, "/set_rtm_count") != nullptr) {
+    static uint32_t lastSet = 0;
+    if (!Throttle::isWithinTimespanMs(lastSet, FIVE_SECONDS_MS)) {
+        lastSet = millis();
+
+        int value = atoi(messageRequest + strlen("/rtm_count"));
+        if (value > 0 && router) {
+            router->setRepeatThreshold(static_cast<uint8_t>(value));
+            char reply[100];
+            snprintf(reply, sizeof(reply), "RTM-Zähler gesetzt auf %d.", value);
+            sendTextReplySplit(currentRequest, reply);
+        } else {
+            sendTextReplySplit(currentRequest, "Ungültiger Wert für /rtm_count.");
+        }
+    }
+}
+
+if (strcasestr_custom(messageRequest, "/get_rtm_count") != nullptr) {
+    char reply[100];
+    snprintf(reply, sizeof(reply), "Aktueller RTM-Zähler: %d", static_cast<int>(router->getRepeatThreshold()));
+    sendTextReplySplit(currentRequest, reply);
+}
+
+
+
     notifyObservers(&currentRequest);
     return ProcessMessage::CONTINUE;
 }
@@ -228,3 +298,4 @@ bool SignalReplyModule::wantPacket(const meshtastic_MeshPacket *p)
 {
     return MeshService::isTextPayload(p);
 }
+
