@@ -8,6 +8,15 @@
  * The RangeTestModule class is an OSThread that runs the module.
  * The RangeTestModuleRadio class handles sending and receiving packets.
  */
+/*
+# This file is based on code from https://github.com/VilemR/meshtstic_modules_mod
+# Original author: VilemR
+# Modifications by: (sleepingshorty)
+# License: GNU GPL v3.0 (see LICENSE file)
+*/
+
+
+
 #include "RangeTestModule.h"
 #include "FSCommon.h"
 #include "MeshService.h"
