@@ -97,26 +97,6 @@ ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &cu
     std::string messageLower = messageRequest;
     std::transform(messageLower.begin(), messageLower.end(), messageLower.begin(), ::tolower);
 
-    // bool shouldNotify = false;
-
-    // if (strcasestr_custom(messageRequest, "empfangen?") != nullptr)
-    //     shouldNotify = true;
-    // else if (strcasestr_custom(messageRequest, "mich jemand") != nullptr)
-    //     shouldNotify = true;
-    // else if (strcasestr_custom(messageRequest, "hallo?") != nullptr)
-    //     shouldNotify = true;
-    // else if (strcasestr_custom(messageRequest, "jemand da") != nullptr)
-    //     shouldNotify = true;
-    // else if (messageLower.find("test") != std::string::npos)
-    //     shouldNotify = true;
-
-    // if (shouldNotify) {
-    //     const char *infoMessage = "Automatische Nachricht: Bitte von LongFast auf ShortSlow umstellen! Netz ist hier im Rheinland auf ShortSlow. Info https://chat.whatsapp.com/L7JhMdd6i4f4Opk3VjLnQt";
-    //     sendTextReplySplit(currentRequest, infoMessage);
-    // }
-
-
-
    
 //RX Stats:
  // LOG_DEBUG("Send queued packet on mesh (txGood=%d,rxGood=%d,rxBad=%d)", rf95.txGood(), rf95.rxGood(), rf95.rxBad());
