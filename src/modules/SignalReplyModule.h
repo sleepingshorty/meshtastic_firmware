@@ -1,5 +1,13 @@
+/*
+# This file is based on code from https://github.com/VilemR/meshtstic_modules_mod
+# Original author: VilemR
+# Modifications by: (sleepingshorty)
+# License: GNU GPL v3.0 (see LICENSE file)
+*/
+
 #pragma once
 #include "SinglePortModule.h"
+
 
 /**
  * A simple example module that just replies with "Message received" to any message it receives.
