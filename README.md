@@ -31,9 +31,9 @@ Responds to `"ping"` messages with:
 - SNR (signal-to-noise ratio)
 
 ### `/set_priority <3–8>`
-Manually sets the **transmit priority** for this client:  
+Manually sets the **priority** for this client:  
 - Lower value = higher priority (faster sending)  
-- Example: `3 = critical`, `8 = passive`  
+- Example: `3 = high priority`, `8 = lowest priority`  
 - Use `-1` to revert to default SNR-based behavior
 
 ### `/get_priority`
