@@ -1,5 +1,72 @@
-<div align="center" markdown="1">
 
+
+# 📡 Meshtastic Firmware Mod – Debug & Stationary Network Extensions
+
+> ⚠️ **Experimental Build – Use at Your Own Risk**  
+> This firmware modification is intended for **debugging** and **experimentation in stationary mesh networks**.  
+> It is **not optimized for robustness, mobile use, or long-term deployment**.  
+> The implementation is quick & dirty, tested only in the field, and may include hardcoded logic or unstable behavior.
+
+This fork introduces several bot-style commands for radio diagnostics, routing transparency, and manual tuning of forwarding behavior. It is meant to help with understanding network dynamics in complex setups (e.g. fixed nodes on rooftops, multi-hop routing, etc.).
+
+---
+
+## ✅ Available Bot Commands
+
+### `/status_info`
+Displays radio and routing statistics:  
+- Sent / received packets  
+- Duplicate packets  
+- Dropped forwards  
+
+### `/neighbor_info`
+Lists currently detected **0-hop neighbors** (directly reachable nodes):  
+- Includes Node ID  
+- Shows last recorded SNR (Signal-to-Noise Ratio)
+
+### `"ping"`
+Responds to `"ping"` messages with:  
+- Hop count  
+- RSSI (signal strength)  
+- SNR (signal-to-noise ratio)
+
+### `/set_priority <3–8>`
+Manually sets the **transmit priority** for this client:  
+- Lower value = higher priority (faster sending)  
+- Example: `3 = critical`, `8 = passive`  
+- Use `-1` to revert to default SNR-based behavior
+
+### `/get_priority`
+Displays the currently active **manual priority**, or reports fallback to the SNR-based logic if unset.
+
+### `/set_rtm_count <n>`
+Configures the **repeat-to-mute threshold**:  
+- A node will retransmit a packet only if it has heard it from fewer than `n` other nodes  
+- Default is `1` (classic repeat-to-mute)  
+- Higher values (e.g., `2` or `3`) allow increased redundancy
+
+### `/get_rtm_count`
+Returns the current **RTM threshold value**:  
+- Defines how many times a packet must be overheard before it is suppressed
+
+---
+
+---
+
+## 📝 Attribution & License Notice
+
+This firmware mod includes code from the project [VilemR/meshtstic_modules_mod](https://github.com/VilemR/meshtstic_modules_mod), licensed under the GNU General Public License v3.0.
+
+The following components are directly or partially derived from that project:
+
+- `RangeTestModule.py` (included without modification)
+- Parts of the `ping` command logic (copied and adapted)
+
+All modifications made in this repository are also subject to the terms of the [GPL-3.0 License](https://www.gnu.org/licenses/gpl-3.0.html).
+
+
+
+<div align="center" markdown="1">
 <img src=".github/meshtastic_logo.png" alt="Meshtastic Logo" width="80"/>
 <h1>Meshtastic Firmware</h1>
 
