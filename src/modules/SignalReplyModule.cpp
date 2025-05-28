@@ -251,14 +251,19 @@ if (strcasestr_custom(messageRequest, "/set_rtm_count") != nullptr) {
     if (!Throttle::isWithinTimespanMs(lastSet, FIVE_SECONDS_MS)) {
         lastSet = millis();
 
-        int value = atoi(messageRequest + strlen("/rtm_count"));
-        if (value > 0 && router) {
-            router->setRepeatThreshold(static_cast<uint8_t>(value));
-            char reply[100];
-            snprintf(reply, sizeof(reply), "RTM-Zähler gesetzt auf %d.", value);
-            sendTextReplySplit(currentRequest, reply);
-        } else {
-            sendTextReplySplit(currentRequest, "Ungültiger Wert für /rtm_count.");
+        int value = atoi(messageRequest + strlen("/set_rtm_count"));
+        if (router){
+            if (value > 0) {
+                router->setRepeatThreshold(static_cast<uint8_t>(value));
+                char reply[100];
+                snprintf(reply, sizeof(reply), "RTM-Zähler gesetzt auf %d.", value);
+                sendTextReplySplit(currentRequest, reply);
+            } else {
+                sendTextReplySplit(currentRequest, "Ungültiger Wert für /rtm_count.");
+            }
+        }
+        else{
+            sendTextReplySplit(currentRequest, "Router-Instanz nicht gefunden");
         }
     }
 }
