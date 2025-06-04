@@ -32,6 +32,7 @@ Responds to `"ping"` messages with:
 
 ### `/set_priority <3–8>`
 Only as node admin!
+
 Manually sets the **priority** for this client:  
 - Lower value = higher priority (faster sending)  
 - Example: `3 = high priority`, `8 = lowest priority`  
@@ -42,6 +43,7 @@ Displays the currently active **manual priority**, or reports fallback to the SN
 
 ### `/set_rtm_count <n>`
 Only as node admin!
+
 Configures the **repeat-to-mute threshold**:  
 - A node will retransmit a packet only if it has heard it from fewer than `n` other nodes  
 - Default is `1` (classic repeat-to-mute)  
@@ -53,6 +55,7 @@ Returns the current **RTM threshold value**:
 
 ### `/enable_tx`
 Only as node admin!
+
 Enables TX. **RTM threshold value**:  
 - Enable TX. You can disable tx for energy saving or recover from a misconfiguration state
 
