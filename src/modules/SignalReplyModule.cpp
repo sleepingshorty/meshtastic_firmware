@@ -35,6 +35,11 @@ const char* strcasestr_custom(const char* haystack, const char* needle) {
 
 
 void SignalReplyModule::sendTextReplySplit(const meshtastic_MeshPacket &request, const std::string &fullMessage) {
+    
+    //Random Waiting time to prevent that all nodes respond at the same time
+
+    delay(random(500, 5001));  // 500–5000 ms
+    
     constexpr size_t MAX_MSG_LEN = 200;
 
     for (size_t offset = 0; offset < fullMessage.length(); offset += MAX_MSG_LEN) {
@@ -261,6 +266,24 @@ if (strcasestr_custom(messageRequest, "/get_rtm_count") != nullptr) {
     sendTextReplySplit(currentRequest, reply);
 }
 
+
+if (strcasestr_custom(messageRequest, "/enable_tx") != nullptr) {
+    static uint32_t lastSet = 0;
+    if (!Throttle::isWithinTimespanMs(lastSet, FIVE_SECONDS_MS)) {
+        lastSet = millis();
+
+        const char* arg = messageRequest + strlen("/enable_tx");
+        
+        config.lora.tx_enabled = true;
+
+        // Änderungen speichern (config reload erzwingen)
+        service->reloadConfig(SEGMENT_CONFIG);
+
+        char reply[64];
+        snprintf(reply, sizeof(reply), "Senden wurde aktiviert");
+        sendTextReplySplit(currentRequest, reply);
+    }
+}
 
 
     notifyObservers(&currentRequest);
