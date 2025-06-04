@@ -220,21 +220,21 @@ if (strcasestr_custom(messageRequest, "/set_priority") != nullptr) {
             if (value >= 3 && value <= 8) {
                 RadioLibInterface::instance->setManualPriority(value);
                 char reply[64];
-                snprintf(reply, sizeof(reply), "Manuelle Priorität gesetzt auf %d.", value);
+                snprintf(reply, sizeof(reply), "Priority set to %d.", value);
                 sendTextReplySplit(currentRequest, reply);
             } else {
                 if (value ==-1) 
                     {
-                    sendTextReplySplit(currentRequest, "Original Clientlogik aktiviert");
+                    sendTextReplySplit(currentRequest, "Normal client logic active");
                     }
                 else{
-                    sendTextReplySplit(currentRequest, "Ungültiger Wert. Bitte 3 (hohe Prio), bis 8 (niedrige Prio) eingeben.");
+                    sendTextReplySplit(currentRequest, "Only values between 3 (high priority) and 8 (low priority)");
                 }
             }
         }
     }
     else{
-        sendTextReplySplit(currentRequest, "Nur Admins oder Hacker ;-)");
+        sendTextReplySplit(currentRequest, "This is a admin-command.");
     }
     
 }
@@ -246,9 +246,9 @@ if (strcasestr_custom(messageRequest, "/get_priority") != nullptr) {
         int32_t manualPriority = RadioLibInterface::instance->getManualPriority();
         char reply[64];
         if (manualPriority >= 0) {
-            snprintf(reply, sizeof(reply), "Aktuelle manuelle Priorität: %d", manualPriority);
+            snprintf(reply, sizeof(reply), "Current priority is %d", manualPriority);
         } else {
-            snprintf(reply, sizeof(reply), "Keine manuelle Priorität gesetzt (SNR-basiert aktiv).");
+            snprintf(reply, sizeof(reply), "Normal client logic is active");
         }
 
         sendTextReplySplit(currentRequest, reply);
@@ -265,22 +265,22 @@ if (strcasestr_custom(messageRequest, "/set_rtm_count") != nullptr) {
 
             int value = atoi(messageRequest + strlen("/set_rtm_count"));
             if (router){
-                if (value > 0) {
+                if (value > 0 && value < 1000) {
                     router->setRepeatThreshold(static_cast<uint8_t>(value));
                     char reply[100];
-                    snprintf(reply, sizeof(reply), "RTM-Zähler gesetzt auf %d.", value);
+                    snprintf(reply, sizeof(reply), "Duplicate threshold is set to %d.", value);
                     sendTextReplySplit(currentRequest, reply);
                 } else {
-                    sendTextReplySplit(currentRequest, "Ungültiger Wert für /rtm_count.");
+                    sendTextReplySplit(currentRequest, "Invalid value for /rtm_count.");
                 }
             }
             else{
-                sendTextReplySplit(currentRequest, "Router-Instanz nicht gefunden");
+                sendTextReplySplit(currentRequest, "Router-instance not found. Programming error");
             }
         }
     }    
     else{
-        sendTextReplySplit(currentRequest, "Nur Admins oder Hacker ;-)");
+        sendTextReplySplit(currentRequest, "This is a admin-command.");
     }
 }
 
@@ -305,12 +305,12 @@ if (strcasestr_custom(messageRequest, "/enable_tx") != nullptr) {
                 service->reloadConfig(SEGMENT_CONFIG);
 
                 char reply[64];
-                snprintf(reply, sizeof(reply), "Senden wurde aktiviert");
+                snprintf(reply, sizeof(reply), "TX is enabled");
                 sendTextReplySplit(currentRequest, reply);
             }
         }    
         else{
-            sendTextReplySplit(currentRequest, "Nur Admins oder Hacker ;-)");
+            sendTextReplySplit(currentRequest, "This is a admin-command.");
         }
         
 }
