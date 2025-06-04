@@ -34,11 +34,24 @@ const char* strcasestr_custom(const char* haystack, const char* needle) {
 }
 
 
+bool isAdminNode(const meshtastic_MeshPacket &packet) {
+    if (!packet.pki_encrypted || packet.public_key.size != 32) return false;
+
+    for (int i = 0; i < 3; i++) {
+        if (config.security.admin_key[i].size == 32 &&
+            memcmp(packet.public_key.bytes, config.security.admin_key[i].bytes, 32) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
 void SignalReplyModule::sendTextReplySplit(const meshtastic_MeshPacket &request, const std::string &fullMessage) {
     
     //Random Waiting time to prevent that all nodes respond at the same time
 
-    delay(random(500, 5001));  // 500–5000 ms
+    delay(random(0, 333));  // 500–5000 ms
     
     constexpr size_t MAX_MSG_LEN = 200;
 
@@ -198,26 +211,32 @@ ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &cu
 
 //Client Logik überschreiben
 if (strcasestr_custom(messageRequest, "/set_priority") != nullptr) {
+ if (isAdminNode(currentRequest)){
     static uint32_t lastSet = 0;
-    if (!Throttle::isWithinTimespanMs(lastSet, FIVE_SECONDS_MS)) {
-        lastSet = millis();
+        if (!Throttle::isWithinTimespanMs(lastSet, FIVE_SECONDS_MS)) {
+            lastSet = millis();
 
-        int value = atoi(messageRequest + strlen("/set_priority"));
-        if (value >= 3 && value <= 8) {
-            RadioLibInterface::instance->setManualPriority(value);
-            char reply[64];
-            snprintf(reply, sizeof(reply), "Manuelle Priorität gesetzt auf %d.", value);
-            sendTextReplySplit(currentRequest, reply);
-        } else {
-            if (value ==-1) 
-                {
-                 sendTextReplySplit(currentRequest, "Original Clientlogik aktiviert");
+            int value = atoi(messageRequest + strlen("/set_priority"));
+            if (value >= 3 && value <= 8) {
+                RadioLibInterface::instance->setManualPriority(value);
+                char reply[64];
+                snprintf(reply, sizeof(reply), "Manuelle Priorität gesetzt auf %d.", value);
+                sendTextReplySplit(currentRequest, reply);
+            } else {
+                if (value ==-1) 
+                    {
+                    sendTextReplySplit(currentRequest, "Original Clientlogik aktiviert");
+                    }
+                else{
+                    sendTextReplySplit(currentRequest, "Ungültiger Wert. Bitte 3 (hohe Prio), bis 8 (niedrige Prio) eingeben.");
                 }
-            else{
-                sendTextReplySplit(currentRequest, "Ungültiger Wert. Bitte 3 (hohe Prio), bis 8 (niedrige Prio) eingeben.");
             }
         }
     }
+    else{
+        sendTextReplySplit(currentRequest, "Nur Admins oder Hacker ;-)");
+    }
+    
 }
 
 if (strcasestr_custom(messageRequest, "/get_priority") != nullptr) {
@@ -239,24 +258,29 @@ if (strcasestr_custom(messageRequest, "/get_priority") != nullptr) {
 
 //Repeat-to-Mute
 if (strcasestr_custom(messageRequest, "/set_rtm_count") != nullptr) {
-    static uint32_t lastSet = 0;
-    if (!Throttle::isWithinTimespanMs(lastSet, FIVE_SECONDS_MS)) {
-        lastSet = millis();
+    if (isAdminNode(currentRequest)){
+        static uint32_t lastSet = 0;
+        if (!Throttle::isWithinTimespanMs(lastSet, FIVE_SECONDS_MS)) {
+            lastSet = millis();
 
-        int value = atoi(messageRequest + strlen("/set_rtm_count"));
-        if (router){
-            if (value > 0) {
-                router->setRepeatThreshold(static_cast<uint8_t>(value));
-                char reply[100];
-                snprintf(reply, sizeof(reply), "RTM-Zähler gesetzt auf %d.", value);
-                sendTextReplySplit(currentRequest, reply);
-            } else {
-                sendTextReplySplit(currentRequest, "Ungültiger Wert für /rtm_count.");
+            int value = atoi(messageRequest + strlen("/set_rtm_count"));
+            if (router){
+                if (value > 0) {
+                    router->setRepeatThreshold(static_cast<uint8_t>(value));
+                    char reply[100];
+                    snprintf(reply, sizeof(reply), "RTM-Zähler gesetzt auf %d.", value);
+                    sendTextReplySplit(currentRequest, reply);
+                } else {
+                    sendTextReplySplit(currentRequest, "Ungültiger Wert für /rtm_count.");
+                }
+            }
+            else{
+                sendTextReplySplit(currentRequest, "Router-Instanz nicht gefunden");
             }
         }
-        else{
-            sendTextReplySplit(currentRequest, "Router-Instanz nicht gefunden");
-        }
+    }    
+    else{
+        sendTextReplySplit(currentRequest, "Nur Admins oder Hacker ;-)");
     }
 }
 
@@ -268,21 +292,27 @@ if (strcasestr_custom(messageRequest, "/get_rtm_count") != nullptr) {
 
 
 if (strcasestr_custom(messageRequest, "/enable_tx") != nullptr) {
-    static uint32_t lastSet = 0;
-    if (!Throttle::isWithinTimespanMs(lastSet, FIVE_SECONDS_MS)) {
-        lastSet = millis();
+    if (isAdminNode(currentRequest)){
+        static uint32_t lastSet = 0;
+            if (!Throttle::isWithinTimespanMs(lastSet, FIVE_SECONDS_MS)) {
+                lastSet = millis();
 
-        const char* arg = messageRequest + strlen("/enable_tx");
+                const char* arg = messageRequest + strlen("/enable_tx");
+                
+                config.lora.tx_enabled = true;
+
+                // Änderungen speichern (config reload erzwingen)
+                service->reloadConfig(SEGMENT_CONFIG);
+
+                char reply[64];
+                snprintf(reply, sizeof(reply), "Senden wurde aktiviert");
+                sendTextReplySplit(currentRequest, reply);
+            }
+        }    
+        else{
+            sendTextReplySplit(currentRequest, "Nur Admins oder Hacker ;-)");
+        }
         
-        config.lora.tx_enabled = true;
-
-        // Änderungen speichern (config reload erzwingen)
-        service->reloadConfig(SEGMENT_CONFIG);
-
-        char reply[64];
-        snprintf(reply, sizeof(reply), "Senden wurde aktiviert");
-        sendTextReplySplit(currentRequest, reply);
-    }
 }
 
 
