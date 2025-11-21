@@ -54,6 +54,9 @@ class MQTT : private concurrency::OSThread
 
     void onClientProxyReceive(meshtastic_MqttClientProxyMessage msg);
 
+    /// Subscribe to an MQTT topic (direct connections only).
+    bool subscribe(const char *topic, uint8_t qos = 1);
+
     bool isEnabled() { return this->enabled; };
 
     void start() { setIntervalFromNow(0); };

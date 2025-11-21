@@ -24,6 +24,9 @@
 #define ETH ETH2
 #endif // HAS_ETHERNET
 #include "Default.h"
+#if ROOM_SERVER_ENABLED
+#include "modules/room/RoomServerService.h"
+#endif
 #if !defined(ARCH_NRF52) || NRF52_USE_JSON
 #include "serialization/JSON.h"
 #include "serialization/MeshPacketSerializer.h"
@@ -394,6 +397,15 @@ void MQTT::onReceive(char *topic, byte *payload, size_t length)
         return;
     }
 
+#if ROOM_SERVER_ENABLED
+    // Room-Server MQTT path: intercept rooms/messages/# topics and forward to RoomServerService.
+    if (roomserver::RoomServerService::instance().isEnabled() &&
+        strncmp(topic, roomserver::RoomMqttBridge::kTopicPrefix, strlen(roomserver::RoomMqttBridge::kTopicPrefix)) == 0) {
+        roomserver::RoomServerService::instance().handleMqtt(topic, std::string(reinterpret_cast<char *>(payload), length));
+        return;
+    }
+#endif
+
     onReceiveProto(topic, payload, length);
 }
 
@@ -505,6 +517,22 @@ bool MQTT::publish(const char *topic, const uint8_t *payload, size_t length, boo
         return pubSub.publish(topic, payload, length, retained);
     }
 #endif
+    return false;
+}
+
+bool MQTT::subscribe(const char *topic, uint8_t qos)
+{
+    if (moduleConfig.mqtt.proxy_to_client_enabled) {
+        LOG_WARN("MQTT subscribe not supported in proxy mode (%s)", topic);
+        return false;
+    }
+#if HAS_NETWORKING
+    if (isConnectedDirectly()) {
+        LOG_INFO("MQTT subscribe to %s (qos=%u)", topic, qos);
+        return pubSub.subscribe(topic, qos);
+    }
+#endif
+    LOG_DEBUG("MQTT subscribe deferred, not connected (%s)", topic);
     return false;
 }
 

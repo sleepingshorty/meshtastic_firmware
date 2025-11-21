@@ -36,6 +36,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 /* Offer chance for variant-specific defines */
 #include "variant.h"
 
+// Experimental Room-Server firmware toggle. Boards that act as Room-Server nodes should
+// `#define ROOM_SERVER_ENABLED 1` in their variant header or build flags.
+#ifndef ROOM_SERVER_ENABLED
+#define ROOM_SERVER_ENABLED 1
+#endif
+
 // -----------------------------------------------------------------------------
 // Version
 // -----------------------------------------------------------------------------
