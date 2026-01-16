@@ -223,8 +223,9 @@ meshtastic_MeshPacket *SignalReplyModule::allocReply()
     auto &p = req.decoded;
     // The incoming message is in p.payload
     LOG_INFO("Received message from=0x%0x, id=%d, msg=%.*s", req.from, req.id, p.payload.size, p.payload.bytes);
-#endif    const char *replyStr = "Message Received";
+#endif
     auto reply = allocDataPacket();                 // Allocate a packet for sending
+    const char *replyStr = "Message Received";
     reply->decoded.payload.size = strlen(replyStr); // You must specify how many bytes are in the reply
     reply->which_payload_variant = meshtastic_MeshPacket_decoded_tag;
 
@@ -236,6 +237,8 @@ bool SignalReplyModule::wantPacket(const meshtastic_MeshPacket *p)
 {
     return MeshService::isTextPayload(p);
 }
+
+
 
 
 
