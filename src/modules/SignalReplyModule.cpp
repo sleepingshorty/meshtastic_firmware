@@ -14,11 +14,11 @@
 #include "Default.h"
 #include "RadioLibInterface.h"
 #include "Router.h"
+#include <algorithm>
 
 SignalReplyModule *signalReplyModule;
 
 int backoff_time_ms = 0;
-extern int rtm_repeat_count;
 
 // Custom implementation of strcasestr by "liquidraver"
 const char* strcasestr_custom(const char* haystack, const char* needle) {
@@ -149,30 +149,7 @@ ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &cu
 
 
 
- //0-Hop Neighbors:
- if (strcasestr_custom(messageRequest, "/neighbor_info") != nullptr) {
-    std::string fullMessage;
-
-    static uint32_t lastNeighBorInfo = 0; 
-        if (!Throttle::isWithinTimespanMs(lastNeighBorInfo, FIVE_SECONDS_MS)) {
-            lastNeighBorInfo = millis();
-            auto neighborList = neighborInfoModule->getNeighbors();
-            for (const auto &n : neighborList) {
-                char line[64];
-                snprintf(line, sizeof(line), "- 0x%x: SNR %.1f\n", n.node_id, n.snr);
-                fullMessage += line;
-            }
-
-            if (fullMessage.empty()) {
-                fullMessage = "No neighbors found.";
-            }
-
-            sendTextReplySplit(currentRequest, fullMessage);
-    }
-}
-
-
-    //This condition is meant to reply to message containing request "ping" or
+ //This condition is meant to reply to message containing request "ping" or
     //range module message sending mesage in "seq"uence - e.g. seq 1, seq 2, seq 3.... etc
     //in such case this module sends back information about sgnal quality as well.
     //If not interested in replies to RangeModule semove "seq" condition
@@ -208,88 +185,6 @@ ProcessMessage SignalReplyModule::handleReceived(const meshtastic_MeshPacket &cu
             sendTextReplySplit(currentRequest, messageReply);
         }
 }
-
-//Client Logik überschreiben
-if (strcasestr_custom(messageRequest, "/set_priority") != nullptr) {
- if (isAdminNode(currentRequest)){
-    static uint32_t lastSet = 0;
-        if (!Throttle::isWithinTimespanMs(lastSet, FIVE_SECONDS_MS)) {
-            lastSet = millis();
-
-            int value = atoi(messageRequest + strlen("/set_priority"));
-            if (value >= 3 && value <= 8) {
-                RadioLibInterface::instance->setManualPriority(value);
-                char reply[64];
-                snprintf(reply, sizeof(reply), "Priority set to %d.", value);
-                sendTextReplySplit(currentRequest, reply);
-            } else {
-                if (value ==-1) 
-                    {
-                    sendTextReplySplit(currentRequest, "Normal client logic active");
-                    }
-                else{
-                    sendTextReplySplit(currentRequest, "Only values between 3 (high priority) and 8 (low priority)");
-                }
-            }
-        }
-    }
-    else{
-        sendTextReplySplit(currentRequest, "This is a admin-command.");
-    }
-    
-}
-
-if (strcasestr_custom(messageRequest, "/get_priority") != nullptr) {
-    static uint32_t lastGet = 0;
-    if (!Throttle::isWithinTimespanMs(lastGet, FIVE_SECONDS_MS)) {
-        lastGet = millis();
-        int32_t manualPriority = RadioLibInterface::instance->getManualPriority();
-        char reply[64];
-        if (manualPriority >= 0) {
-            snprintf(reply, sizeof(reply), "Current priority is %d", manualPriority);
-        } else {
-            snprintf(reply, sizeof(reply), "Normal client logic is active");
-        }
-
-        sendTextReplySplit(currentRequest, reply);
-    }
-}
-
-
-//Repeat-to-Mute
-if (strcasestr_custom(messageRequest, "/set_rtm_count") != nullptr) {
-    if (isAdminNode(currentRequest)){
-        static uint32_t lastSet = 0;
-        if (!Throttle::isWithinTimespanMs(lastSet, FIVE_SECONDS_MS)) {
-            lastSet = millis();
-
-            int value = atoi(messageRequest + strlen("/set_rtm_count"));
-            if (router){
-                if (value > 0 && value < 1000) {
-                    router->setRepeatThreshold(static_cast<uint8_t>(value));
-                    char reply[100];
-                    snprintf(reply, sizeof(reply), "Duplicate threshold is set to %d.", value);
-                    sendTextReplySplit(currentRequest, reply);
-                } else {
-                    sendTextReplySplit(currentRequest, "Invalid value for /rtm_count.");
-                }
-            }
-            else{
-                sendTextReplySplit(currentRequest, "Router-instance not found. Programming error");
-            }
-        }
-    }    
-    else{
-        sendTextReplySplit(currentRequest, "This is a admin-command.");
-    }
-}
-
-if (strcasestr_custom(messageRequest, "/get_rtm_count") != nullptr) {
-    char reply[100];
-    snprintf(reply, sizeof(reply), "Aktueller RTM-Zähler: %d", static_cast<int>(router->getRepeatThreshold()));
-    sendTextReplySplit(currentRequest, reply);
-}
-
 
 if (strcasestr_custom(messageRequest, "/enable_tx") != nullptr) {
     if (isAdminNode(currentRequest)){
@@ -328,9 +223,7 @@ meshtastic_MeshPacket *SignalReplyModule::allocReply()
     auto &p = req.decoded;
     // The incoming message is in p.payload
     LOG_INFO("Received message from=0x%0x, id=%d, msg=%.*s", req.from, req.id, p.payload.size, p.payload.bytes);
-#endif
-    screen->print("Send reply\n");
-    const char *replyStr = "Message Received";
+#endif    const char *replyStr = "Message Received";
     auto reply = allocDataPacket();                 // Allocate a packet for sending
     reply->decoded.payload.size = strlen(replyStr); // You must specify how many bytes are in the reply
     reply->which_payload_variant = meshtastic_MeshPacket_decoded_tag;
@@ -343,4 +236,6 @@ bool SignalReplyModule::wantPacket(const meshtastic_MeshPacket *p)
 {
     return MeshService::isTextPayload(p);
 }
+
+
 
