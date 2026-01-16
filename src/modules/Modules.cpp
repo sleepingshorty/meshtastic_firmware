@@ -38,6 +38,7 @@
 #if !MESHTASTIC_EXCLUDE_NEIGHBORINFO
 #include "modules/NeighborInfoModule.h"
 #endif
+#include "modules/SignalReplyModule.h"
 #if !MESHTASTIC_EXCLUDE_NODEINFO
 #include "modules/NodeInfoModule.h"
 #endif
@@ -177,6 +178,9 @@ void setupModules()
 #if !MESHTASTIC_EXCLUDE_POWERSTRESS
     new PowerStressModule();
 #endif
+#if PINGBOT
+    new SignalReplyModule();
+#endif
     // Example: Put your module here
     // new ReplyModule();
 #if (HAS_BUTTON || ARCH_PORTDUINO) && !MESHTASTIC_EXCLUDE_INPUTBROKER
@@ -309,3 +313,7 @@ void setupModules()
     // acks
     routingModule = new RoutingModule();
 }
+
+
+
+
